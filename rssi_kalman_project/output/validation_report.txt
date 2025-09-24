@@ -1,0 +1,14 @@
+RSSI KALMAN FILTER VALIDATION REPORT
+==================================================
+
+Generated on: 2025-09-25 00:20:22.735178
+Total devices processed: 24
+
+NOISE REDUCTION PERFORMANCE:
+Average noise reduction: 0.57 dBm
+Best noise reduction: 1.02 dBm
+Worst noise reduction: 0.23 dBm
+
+RECOMMENDATIONS:
+- Check individual device plots for specific issues
+- Ensure timestamp ordering is correct

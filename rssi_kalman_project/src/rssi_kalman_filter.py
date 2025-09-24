@@ -66,11 +66,15 @@ class RSSIKalmanFilter:
         
         return filtered_values
 
-def load_rssi_data(raw_file, filtered_file=None):
+def load_rssi_data(raw_file=None, filtered_file=None):
     """Load RSSI data from CSV files"""
+    if not raw_file:
+        print("No file path provided")
+        return None, None
+        
     print(f"Attempting to load: {raw_file}")
     
-    # Try different parsing methods
+    # Try different parsing methods for large files
     raw_data = None
     parsing_methods = [
         {'sep': ','},  # Standard CSV
@@ -82,22 +86,25 @@ def load_rssi_data(raw_file, filtered_file=None):
     for i, method in enumerate(parsing_methods):
         try:
             print(f"Trying parsing method {i+1}: {method}")
-            raw_data = pd.read_csv(raw_file, **method)
-            print(f"Successfully loaded with method {i+1}")
-            print(f"Shape: {raw_data.shape}")
-            print(f"Columns: {raw_data.columns.tolist()}")
-            print(f"First few rows:")
-            print(raw_data.head(3))
+            
+            # For large files, read in chunks to check format first
+            sample_data = pd.read_csv(raw_file, nrows=10, **method)
+            print(f"Sample loaded with method {i+1}")
+            print(f"Sample shape: {sample_data.shape}")
+            print(f"Columns: {sample_data.columns.tolist()}")
             
             # Check if we have the expected columns
             expected_cols = ['name', 'locationStatus', 'timestamp', 'rssiOne', 'rssiTwo']
-            if all(col in raw_data.columns for col in expected_cols):
-                print("✅ All expected columns found!")
+            if all(col in sample_data.columns for col in expected_cols):
+                print("✅ All expected columns found! Loading full dataset...")
+                
+                # Load the full dataset
+                raw_data = pd.read_csv(raw_file, **method)
+                print(f"✅ Full dataset loaded: {raw_data.shape} rows")
                 break
             else:
                 print(f"❌ Missing columns. Expected: {expected_cols}")
-                print(f"Found: {raw_data.columns.tolist()}")
-                raw_data = None
+                print(f"Found: {sample_data.columns.tolist()}")
                 
         except Exception as e:
             print(f"Method {i+1} failed: {str(e)}")
@@ -105,7 +112,6 @@ def load_rssi_data(raw_file, filtered_file=None):
     
     if raw_data is None:
         print("❌ All parsing methods failed. Let's try manual inspection...")
-        # Read first few lines to inspect format
         try:
             with open(raw_file, 'r') as f:
                 lines = [f.readline().strip() for _ in range(5)]
@@ -125,9 +131,13 @@ def load_rssi_data(raw_file, filtered_file=None):
             # Use the same method that worked for raw data
             for method in parsing_methods:
                 try:
-                    filtered_data = pd.read_csv(filtered_file, **method)
-                    print(f"Filtered data shape: {filtered_data.shape}")
-                    break
+                    # Check sample first
+                    sample_filtered = pd.read_csv(filtered_file, nrows=10, **method)
+                    expected_cols = ['name', 'locationStatus', 'timestamp', 'rssiOne', 'rssiTwo']
+                    if all(col in sample_filtered.columns for col in expected_cols):
+                        filtered_data = pd.read_csv(filtered_file, **method)
+                        print(f"✅ Filtered data loaded: {filtered_data.shape} rows")
+                        break
                 except:
                     continue
         except Exception as e:
@@ -153,25 +163,52 @@ def process_device_rssi(data, device_name, rssi_column='rssiOne'):
     
     return rssi_values, timestamps
 
-def filter_all_devices_rssi(raw_data, process_noise=1.0, measurement_noise=10.0):
-    """Filter RSSI for all devices in the dataset"""
+def filter_all_devices_rssi(raw_data, process_noise=1.0, measurement_noise=10.0, batch_size=1000):
+    """Filter RSSI for all devices in the dataset with batch processing for large datasets"""
     # Get unique device names
     devices = raw_data['name'].unique()
+    print(f"Processing {len(devices)} unique devices...")
     
     results = {}
+    total_processed = 0
     
-    for device in devices:
-        print(f"Processing device: {device}")
+    for device_idx, device in enumerate(devices):
+        print(f"Processing device {device_idx + 1}/{len(devices)}: {device}")
         
         # Process both rssiOne and rssiTwo
         for rssi_col in ['rssiOne', 'rssiTwo']:
             rssi_values, timestamps = process_device_rssi(raw_data, device, rssi_col)
             
             if rssi_values is not None:
-                # Create and apply Kalman filter
-                kf = RSSIKalmanFilter(process_noise=process_noise, 
-                                    measurement_noise=measurement_noise)
-                filtered_rssi = kf.filter_rssi_sequence(rssi_values)
+                print(f"  {rssi_col}: {len(rssi_values)} measurements")
+                
+                # For large datasets, process in batches to manage memory
+                if len(rssi_values) > batch_size:
+                    print(f"  Large dataset detected. Processing in batches of {batch_size}...")
+                    
+                    # Process in batches
+                    filtered_rssi_batches = []
+                    
+                    for start_idx in range(0, len(rssi_values), batch_size):
+                        end_idx = min(start_idx + batch_size, len(rssi_values))
+                        batch_rssi = rssi_values[start_idx:end_idx]
+                        
+                        # Create and apply Kalman filter for this batch
+                        kf = RSSIKalmanFilter(process_noise=process_noise, 
+                                            measurement_noise=measurement_noise)
+                        batch_filtered = kf.filter_rssi_sequence(batch_rssi)
+                        filtered_rssi_batches.extend(batch_filtered)
+                        
+                        if (start_idx // batch_size) % 10 == 0:  # Progress update every 10 batches
+                            progress = min(end_idx / len(rssi_values) * 100, 100)
+                            print(f"    Progress: {progress:.1f}%")
+                    
+                    filtered_rssi = filtered_rssi_batches
+                else:
+                    # Process normally for smaller datasets
+                    kf = RSSIKalmanFilter(process_noise=process_noise, 
+                                        measurement_noise=measurement_noise)
+                    filtered_rssi = kf.filter_rssi_sequence(rssi_values)
                 
                 # Store results
                 key = f"{device}_{rssi_col}"
@@ -182,7 +219,9 @@ def filter_all_devices_rssi(raw_data, process_noise=1.0, measurement_noise=10.0)
                     'device': device,
                     'rssi_type': rssi_col
                 }
+                total_processed += len(rssi_values)
     
+    print(f"✅ Total measurements processed: {total_processed:,}")
     return results
 
 def plot_comparison(results, device_key, comparison_data=None, save_plots=True, output_dir="output"):
@@ -335,85 +374,57 @@ def evaluate_filter_performance(results, reference_data=None, save_results=True,
     
     return evaluation_results
 
-# Main execution
-if __name__ == "__main__":
-    # Set up file paths
-    data_dir = "data"
-    raw_file = os.path.join(data_dir, "raw_rssi.csv")
-    filtered_file = os.path.join(data_dir, "filtered_rssi.csv")
-    
-    # Alternative if using .txt files:
-    # raw_file = os.path.join(data_dir, "raw_rssi.txt")
-    # filtered_file = os.path.join(data_dir, "filtered_rssi.txt")
-    
-    # Check if files exist
-    if not os.path.exists(raw_file):
-        print(f"Error: {raw_file} not found!")
-        print(f"Please place your raw RSSI file in the {data_dir}/ directory")
-        exit(1)
-    
-    if not os.path.exists(filtered_file):
-        print(f"Warning: {filtered_file} not found!")
-        print("Will run without reference comparison")
-        filtered_file = None
-    
-    # Load data
-    print("Loading RSSI data...")
-    raw_data, filtered_data = load_rssi_data(raw_file, filtered_file)
-    
-    print(f"Raw data shape: {raw_data.shape}")
-    print(f"Raw data columns: {raw_data.columns.tolist()}")
-    print(f"Unique devices in raw data: {raw_data['name'].nunique()}")
-    
-    if filtered_data is not None:
-        print(f"Filtered data shape: {filtered_data.shape}")
-        print(f"Unique devices in filtered data: {filtered_data['name'].nunique()}")
-    
-    # Apply Kalman filter to all devices
-    print("\nApplying Kalman filter...")
-    results = filter_all_devices_rssi(raw_data, 
-                                    process_noise=1.0,    # Adjust these parameters
-                                    measurement_noise=15.0) # based on your data
-    
-    # Evaluate performance
-    evaluate_filter_performance(results, filtered_data)
-    
-    # Plot example comparison (first device)
-    if results:
-        first_device = list(results.keys())[0]
-        print(f"\nPlotting comparison for: {first_device}")
-        plot_comparison(results, first_device, filtered_data)
-    
-def save_filtered_data(results, output_dir="output", filename="kalman_filtered_results.csv"):
-    """Save filtered results to CSV file"""
+def save_filtered_data(results, output_dir="output", filename="kalman_filtered_results.csv", chunk_size=10000):
+    """Save filtered results to CSV file with chunked writing for large datasets"""
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     
-    # Prepare data for saving
-    save_data = []
-    
-    for device_key, data in results.items():
-        device_name = data['device']
-        rssi_type = data['rssi_type']
-        
-        for i, (timestamp, raw_val, filtered_val) in enumerate(zip(
-            data['timestamps'], data['raw'], data['filtered'])):
-            
-            save_data.append({
-                'device': device_name,
-                'rssi_type': rssi_type,
-                'timestamp': timestamp,
-                'raw_rssi': raw_val,
-                'kalman_filtered_rssi': filtered_val,
-                'measurement_index': i
-            })
-    
-    # Save to CSV
-    df = pd.DataFrame(save_data)
     filepath = os.path.join(output_dir, filename)
-    df.to_csv(filepath, index=False)
-    print(f"Filtered data saved to: {filepath}")
     
+    # Calculate total rows to estimate file size
+    total_rows = sum(len(data['timestamps']) for data in results.values())
+    print(f"Preparing to save {total_rows:,} measurements to {filename}...")
+    
+    # Write in chunks to handle large datasets efficiently
+    first_chunk = True
+    rows_written = 0
+    
+    with open(filepath, 'w', newline='', encoding='utf-8') as csvfile:
+        import csv
+        writer = None
+        
+        for device_key, data in results.items():
+            device_name = data['device']
+            rssi_type = data['rssi_type']
+            
+            for i, (timestamp, raw_val, filtered_val) in enumerate(zip(
+                data['timestamps'], data['raw'], data['filtered'])):
+                
+                row_data = {
+                    'device': device_name,
+                    'rssi_type': rssi_type,
+                    'timestamp': timestamp,
+                    'raw_rssi': raw_val,
+                    'kalman_filtered_rssi': filtered_val,
+                    'measurement_index': i
+                }
+                
+                # Initialize writer with first row
+                if first_chunk:
+                    writer = csv.DictWriter(csvfile, fieldnames=row_data.keys())
+                    writer.writeheader()
+                    first_chunk = False
+                
+                writer.writerow(row_data)
+                rows_written += 1
+                
+                # Progress update for large datasets
+                if rows_written % chunk_size == 0:
+                    progress = (rows_written / total_rows) * 100
+                    print(f"  Saving progress: {progress:.1f}% ({rows_written:,}/{total_rows:,})")
+    
+    print(f"✅ Filtered data saved to: {filepath}")
+    print(f"   Total rows saved: {rows_written:,}")
     return filepath
 
 def create_validation_report(results, reference_data=None, output_dir="output"):
@@ -488,3 +499,191 @@ def create_validation_report(results, reference_data=None, output_dir="output"):
     
     print(f"Validation report saved to: {report_file}")
     return report_file
+
+# Main execution
+if __name__ == "__main__":
+    print("🚀 RSSI KALMAN FILTER - Large Dataset Version")
+    print("=" * 60)
+    
+    # Use local files
+    data_dir = "data"
+    raw_file = os.path.join(data_dir, "raw_rssi.csv")
+    filtered_file = os.path.join(data_dir, "filtered_rssi.csv")
+    
+    # Alternative file extensions
+    if not os.path.exists(raw_file):
+        raw_file = os.path.join(data_dir, "raw_rssi.txt")
+        filtered_file = os.path.join(data_dir, "filtered_rssi.txt")
+    
+    # Check if files exist
+    if not os.path.exists(raw_file):
+        print(f"❌ Error: {raw_file} not found!")
+        print(f"Please place your raw RSSI file in the {data_dir}/ directory")
+        print("Supported formats: .csv, .txt")
+        exit(1)
+    
+    if not os.path.exists(filtered_file):
+        print(f"⚠️  Warning: {filtered_file} not found!")
+        print("Will run without reference comparison")
+        filtered_file = None
+    
+    # Load data
+    print("Loading RSSI data...")
+    try:
+        raw_data, filtered_data = load_rssi_data(raw_file, filtered_file)
+    except Exception as e:
+        print(f"❌ Error loading data: {e}")
+        print("\n🔧 TROUBLESHOOTING STEPS:")
+        print("1. Check that your files are properly formatted")
+        print("2. Ensure the first line contains headers: name, locationStatus, timestamp, rssiOne, rssiTwo")
+        print("3. Make sure data is separated by spaces, tabs, or commas")
+        print("4. Check file encoding (should be UTF-8)")
+        exit(1)
+    
+    print(f"✅ Raw data loaded successfully!")
+    print(f"📊 Raw data shape: {raw_data.shape}")
+    print(f"📋 Raw data columns: {raw_data.columns.tolist()}")
+    
+    # Verify we have the required columns
+    required_columns = ['name', 'locationStatus', 'timestamp', 'rssiOne', 'rssiTwo']
+    missing_columns = [col for col in required_columns if col not in raw_data.columns]
+    
+    if missing_columns:
+        print(f"❌ Error: Missing required columns: {missing_columns}")
+        print(f"Available columns: {raw_data.columns.tolist()}")
+        exit(1)
+    
+    print(f"🔢 Unique devices in raw data: {raw_data['name'].nunique()}")
+    print(f"📈 Total measurements: {len(raw_data):,}")
+    
+    if filtered_data is not None:
+        print(f"📊 Filtered reference data shape: {filtered_data.shape}")
+        print(f"🔢 Unique devices in filtered data: {filtered_data['name'].nunique()}")
+    
+    # Memory usage info for large datasets
+    memory_usage = raw_data.memory_usage(deep=True).sum() / (1024 * 1024)  # MB
+    print(f"💾 Raw data memory usage: {memory_usage:.1f} MB")
+    
+    # Set batch size based on dataset size
+    if memory_usage > 100:  # If > 100MB
+        print("⚡ Large dataset detected - using optimized processing")
+        batch_size = 5000
+    elif len(raw_data) > 10000:  # If > 10k rows
+        print("📊 Medium dataset detected - using standard processing")
+        batch_size = 2000
+    else:
+        batch_size = 1000
+    
+    print(f"⚙️  Batch size set to: {batch_size}")
+    
+    # Apply Kalman filter to all devices with optimized processing
+    print(f"\n🔄 Applying Kalman filter to large dataset...")
+    print(f"⚙️  Processing parameters:")
+    print(f"   - Process noise: 1.0")
+    print(f"   - Measurement noise: 15.0")
+    print(f"   - Batch size: {batch_size}")
+    
+    import time
+    start_time = time.time()
+    
+    results = filter_all_devices_rssi(raw_data, 
+                                    process_noise=1.0,
+                                    measurement_noise=15.0,
+                                    batch_size=batch_size)
+    
+    processing_time = time.time() - start_time
+    print(f"⏱️  Processing completed in {processing_time:.2f} seconds")
+    
+    # Create output directory
+    output_dir = "output"
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+        print(f"📁 Created output directory: {output_dir}")
+    
+    # Save filtered data to CSV with chunked writing
+    print(f"\n💾 Saving filtered results...")
+    start_save = time.time()
+    save_filtered_data(results, output_dir, chunk_size=batch_size)
+    save_time = time.time() - start_save
+    print(f"⏱️  Saving completed in {save_time:.2f} seconds")
+    
+    # Evaluate performance and save results
+    print(f"\n📊 Evaluating performance...")
+    evaluation_results = evaluate_filter_performance(results, filtered_data, save_results=True, output_dir=output_dir)
+    
+    # Create validation report
+    print(f"\n📝 Creating validation report...")
+    create_validation_report(results, filtered_data, output_dir)
+    
+    # For large datasets, only plot a subset of devices
+    print(f"\n📈 Generating sample plots...")
+    all_device_keys = list(results.keys())
+    
+    # Select a representative sample of devices to plot
+    num_devices_to_plot = min(5, len(all_device_keys))  # Plot max 5 devices
+    devices_to_plot = all_device_keys[:num_devices_to_plot]
+    
+    print(f"   Plotting {num_devices_to_plot} out of {len(all_device_keys)} devices")
+    
+    for i, device_key in enumerate(devices_to_plot):
+        print(f"   Creating plot {i+1}/{num_devices_to_plot}: {device_key}")
+        rmse, has_ref = plot_comparison(results, device_key, filtered_data, 
+                                      save_plots=True, output_dir=output_dir)
+    
+    # Final summary for large dataset
+    total_measurements = sum(len(data['timestamps']) for data in results.values())
+    total_devices = len(set(data['device'] for data in results.values()))
+    
+    print(f"\n{'='*70}")
+    print("🎉 LARGE DATASET KALMAN FILTERING COMPLETED!")
+    print(f"{'='*70}")
+    print(f"📊 Dataset Statistics:")
+    print(f"   • Total devices processed: {total_devices}")
+    print(f"   • Total measurements: {total_measurements:,}")
+    print(f"   • Processing time: {processing_time:.2f} seconds")
+    print(f"   • Processing speed: {total_measurements/processing_time:,.0f} measurements/second")
+    print(f"")
+    print(f"📁 Output Files:")
+    print(f"   • 📊 Sample plots: {num_devices_to_plot} comparison plots")
+    print(f"   • 📋 Performance results: filter_performance_results.csv")
+    print(f"   • 📄 Validation report: validation_report.txt")
+    print(f"   • 💾 Filtered dataset: kalman_filtered_results.csv ({total_measurements:,} rows)")
+    
+    if filtered_data is not None:
+        # Calculate overall performance score
+        rmse_scores = [r['rmse_vs_reference'] for r in evaluation_results if r['rmse_vs_reference'] is not None]
+        if rmse_scores:
+            avg_rmse = np.mean(rmse_scores)
+            print(f"")
+            print(f"🎯 Performance Summary:")
+            print(f"   • Average RMSE vs Reference: {avg_rmse:.2f} dBm")
+            
+            if avg_rmse < 2.0:
+                print("   • 🎉 RESULT: EXCELLENT performance!")
+            elif avg_rmse < 5.0:
+                print("   • ✅ RESULT: GOOD performance!")
+            elif avg_rmse < 10.0:
+                print("   • ⚠️  RESULT: FAIR performance - consider parameter tuning")
+            else:
+                print("   • ❌ RESULT: POOR performance - parameters need adjustment")
+    else:
+        print(f"   • ℹ️  No reference data provided for validation")
+    
+    print(f"")
+    print(f"📖 Check validation_report.txt for detailed analysis!")
+    print(f"🔧 To improve results, adjust process_noise and measurement_noise parameters")
+    print(f"⚡ For even larger datasets, increase batch_size parameter")
+    
+    print(f"\n✅ Kalman filtering completed successfully!")
+    
+    # Memory cleanup for large datasets
+    if memory_usage > 50:  # If dataset was large
+        print(f"🧹 Cleaning up memory...")
+        del raw_data
+        if 'filtered_data' in locals():
+            del filtered_data
+        if 'results' in locals():
+            del results
+        import gc
+        gc.collect()
+        print(f"✅ Memory cleanup completed")
