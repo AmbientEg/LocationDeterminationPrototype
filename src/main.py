@@ -1,51 +1,45 @@
 from src.readRSSI import readRSSI
 from src.trilateration import trilaterate
 from src.kalman import RSSIKalman
+from src.log_normal_propagation import rssi_to_distance
 import numpy as np
 
 if __name__ == "__main__":
-    # Step 1: Load dataset (RSSI → distance, keep top 3 strongest beacons)
-    df = readRSSI("data/kaggel/iBeacon_RSSI_Labeled.csv", top_n=3)
-    print("Sample cleaned data:")
-    print(df.head())
+    # Step 1: Load dataset (RSSI values) with top 3 strongest per row
+    readings = readRSSI("data/kaggel/iBeacon_RSSI_Labeled.csv", top_n=3)
+    print("Sample cleaned data (first 3 rows):")
+    for r in readings[:3]:
+        print(f"{r.location} | {r.date} | {r.beacons}")
 
     # Step 2: Define known beacon positions
-    """
-    A 1, B 2, C 3, D 4 ,E 5, F 6, G 7, H 8, I 9,
-   J 10, K 11, L 12, M 13, N 14, O 15, P 16, Q 17, R 18,
-   S 19, T 20, U 21, V 22, W 23, X 24, Y 25, Z 26
-
-    """
     beacon_positions = {
-        "Beacon1": (6, 9),
-        "Beacon2": (10, 4),
-        "Beacon3": (14, 4),
-        "Beacon4": (18, 4),
-        "Beacon5": (10, 7),
-        "Beacon6": (14, 7),
-        "Beacon7": (18, 7),
-        "Beacon8": (10, 10),
-        "Beacon9": (4, 15),
-        "Beacon10": (10, 15),
-        "Beacon11": (14, 15),
-        "Beacon12": (18, 15),
-        "Beacon13": (23, 15)
+        "b3001": (6, 9),
+        "b3002": (10, 4),
+        "b3003": (14, 4),
+        "b3004": (18, 4),
+        "b3005": (10, 7),
+        "b3006": (14, 7),
+        "b3007": (18, 7),
+        "b3008": (10, 10),
+        "b3009": (4, 15),
+        "b3010": (10, 15),
+        "b3011": (14, 15),
+        "b3012": (18, 15),
+        "b3013": (23, 15)
     }
 
-    # Step 3: Iterate rows and apply trilateration
+    # Step 3: Iterate readings → RSSI → distance → trilateration
     positions = []
-    for _, row in df.iterrows():
-        # Pick the top 3 valid beacons in this row
-        row_beacons = row.dropna()[2:]  # drop Waypoint + Timestamp, keep only beacon cols
-        if len(row_beacons) < 3:
-            continue  # skip rows with <3 valid beacons
+    for reading in readings:
+        beacon_ids = list(reading.beacons.keys())
+        rssi_values = list(reading.beacons.values())
 
-        # Get the 3 closest beacons
-        top3 = row_beacons.nsmallest(3)
+        # Skip if any beacon not in known positions
+        if any(b not in beacon_positions for b in beacon_ids):
+            continue
 
-        # Extract positions + distances
-        beacon_ids = top3.index.tolist()
-        distances = top3.values.tolist()
+        # Convert RSSI → distances
+        distances = [rssi_to_distance(rssi) for rssi in rssi_values]
 
         try:
             pos = trilaterate(
@@ -58,16 +52,16 @@ if __name__ == "__main__":
             print(f"Trilateration failed on row: {e}")
             continue
 
-    print("Trilateration results (first 5):")
+    print("\nTrilateration results (first 5):")
     print(positions[:5])
 
-    # Step 4: Smooth with Kalman filter
+    # Step 4: Apply Kalman smoothing
     kf = RSSIKalman()
     smoothed = []
-    for (x, y) in positions:
+    for x, y in positions:
         kf.predict()
         state = kf.update(x, y)
         smoothed.append((state[0], state[1]))  # X, Y
 
-    print("Smoothed positions (first 5):")
+    print("\nSmoothed positions (first 5):")
     print(smoothed[:5])

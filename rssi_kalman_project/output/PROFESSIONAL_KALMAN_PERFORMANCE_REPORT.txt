@@ -1,0 +1,116 @@
+================================================================================
+PROFESSIONAL RSSI KALMAN FILTER PERFORMANCE REPORT
+================================================================================
+
+Report Generation Date: 2025-09-25 10:58:21
+Analysis Type: Kalman Filter vs Reference Filter Comparison
+Dataset: RSSI Indoor Positioning Data
+
+EXECUTIVE SUMMARY:
+--------------------
+• Raw Data Points: 27,168
+• Reference Data Points: 9,984
+• Devices Analyzed: 12
+• Signal Types: rssiOne, rssiTwo
+
+DETAILED DEVICE ANALYSIS:
+------------------------------
+
+Device: FF:FF:C0:21:F1:31_rssiOne
+  WARNING: Data length mismatch: Kalman(1146) vs Reference(853)
+  Status: SKIPPED - Cannot compare different length sequences
+
+Device: FF:FF:C0:21:F1:31_rssiTwo
+  WARNING: Data length mismatch: Kalman(1146) vs Reference(853)
+  Status: SKIPPED - Cannot compare different length sequences
+
+Device: FF:FF:C0:21:EF:BA_rssiOne
+  WARNING: Data length mismatch: Kalman(1045) vs Reference(698)
+  Status: SKIPPED - Cannot compare different length sequences
+
+Device: FF:FF:C0:21:EF:BA_rssiTwo
+  WARNING: Data length mismatch: Kalman(1045) vs Reference(698)
+  Status: SKIPPED - Cannot compare different length sequences
+
+Device: FF:FF:C0:21:EF:1A_rssiOne
+  WARNING: Data length mismatch: Kalman(1066) vs Reference(759)
+  Status: SKIPPED - Cannot compare different length sequences
+
+Device: FF:FF:C0:21:EF:1A_rssiTwo
+  WARNING: Data length mismatch: Kalman(1066) vs Reference(759)
+  Status: SKIPPED - Cannot compare different length sequences
+
+Device: FF:FF:C0:21:EF:BF_rssiOne
+  WARNING: Data length mismatch: Kalman(1159) vs Reference(855)
+  Status: SKIPPED - Cannot compare different length sequences
+
+Device: FF:FF:C0:21:EF:BF_rssiTwo
+  WARNING: Data length mismatch: Kalman(1159) vs Reference(855)
+  Status: SKIPPED - Cannot compare different length sequences
+
+Device: FF:FF:C0:21:F1:2B_rssiOne
+  WARNING: Data length mismatch: Kalman(1196) vs Reference(910)
+  Status: SKIPPED - Cannot compare different length sequences
+
+Device: FF:FF:C0:21:F1:2B_rssiTwo
+  WARNING: Data length mismatch: Kalman(1196) vs Reference(910)
+  Status: SKIPPED - Cannot compare different length sequences
+
+Device: FF:FF:C2:1E:05:19_rssiOne
+  WARNING: Data length mismatch: Kalman(1182) vs Reference(877)
+  Status: SKIPPED - Cannot compare different length sequences
+
+Device: FF:FF:C2:1E:05:19_rssiTwo
+  WARNING: Data length mismatch: Kalman(1182) vs Reference(877)
+  Status: SKIPPED - Cannot compare different length sequences
+
+Device: FF:FF:C2:1E:02:D2_rssiOne
+  WARNING: Data length mismatch: Kalman(1175) vs Reference(890)
+  Status: SKIPPED - Cannot compare different length sequences
+
+Device: FF:FF:C2:1E:02:D2_rssiTwo
+  WARNING: Data length mismatch: Kalman(1175) vs Reference(890)
+  Status: SKIPPED - Cannot compare different length sequences
+
+Device: FF:FF:C0:21:EF:A4_rssiOne
+  WARNING: Data length mismatch: Kalman(996) vs Reference(746)
+  Status: SKIPPED - Cannot compare different length sequences
+
+Device: FF:FF:C0:21:EF:A4_rssiTwo
+  WARNING: Data length mismatch: Kalman(996) vs Reference(746)
+  Status: SKIPPED - Cannot compare different length sequences
+
+Device: FF:FF:C2:1D:9B:54_rssiOne
+  WARNING: Data length mismatch: Kalman(1112) vs Reference(803)
+  Status: SKIPPED - Cannot compare different length sequences
+
+Device: FF:FF:C2:1D:9B:54_rssiTwo
+  WARNING: Data length mismatch: Kalman(1112) vs Reference(803)
+  Status: SKIPPED - Cannot compare different length sequences
+
+Device: FF:FF:C2:1D:9B:71_rssiOne
+  WARNING: Data length mismatch: Kalman(1178) vs Reference(877)
+  Status: SKIPPED - Cannot compare different length sequences
+
+Device: FF:FF:C2:1D:9B:71_rssiTwo
+  WARNING: Data length mismatch: Kalman(1178) vs Reference(877)
+  Status: SKIPPED - Cannot compare different length sequences
+
+Device: FF:FF:C2:1D:9B:52_rssiOne
+  WARNING: Data length mismatch: Kalman(1170) vs Reference(882)
+  Status: SKIPPED - Cannot compare different length sequences
+
+Device: FF:FF:C2:1D:9B:52_rssiTwo
+  WARNING: Data length mismatch: Kalman(1170) vs Reference(882)
+  Status: SKIPPED - Cannot compare different length sequences
+
+Device: FF:FF:C0:22:3D:C1_rssiOne
+  WARNING: Data length mismatch: Kalman(1159) vs Reference(834)
+  Status: SKIPPED - Cannot compare different length sequences
+
+Device: FF:FF:C0:22:3D:C1_rssiTwo
+  WARNING: Data length mismatch: Kalman(1159) vs Reference(834)
+  Status: SKIPPED - Cannot compare different length sequences
+
+END OF REPORT
+================================================================================

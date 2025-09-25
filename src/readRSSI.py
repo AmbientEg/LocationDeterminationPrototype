@@ -1,14 +1,12 @@
 import pandas as pd
 from pydantic import BaseModel, validator
-from typing import Dict, List
-
+from typing import Dict, List, Optional
 
 class BeaconReading(BaseModel):
     location: str
-    date: str  # could also be datetime, but your file uses custom format
+    date: str
     beacons: Dict[str, int]
 
-    # validate RSSI range
     @validator("beacons")
     def check_rssi(cls, v):
         for beacon, rssi in v.items():
@@ -17,26 +15,32 @@ class BeaconReading(BaseModel):
         return v
 
 
-def read_csv_with_pydantic(filepath: str) -> List[BeaconReading]:
+def readRSSI(filepath: str, top_n: Optional[int] = 3) -> List[BeaconReading]:
+    """
+    Read CSV and return a list of BeaconReading with top_n strongest readings per row.
+    Only includes readings > -200.
+    """
     df = pd.read_csv(filepath)
-
     readings = []
+
     for _, row in df.iterrows():
-        beacon_values = {col: int(row[col]) for col in df.columns if col.startswith("b")}
-        reading = BeaconReading(
-            location=row["location"],
-            date=row["date"],
-            beacons=beacon_values
+        # Keep only beacon columns
+        beacon_cols = [c for c in df.columns if c.startswith("b")]
+        beacon_values = {c: row[c] for c in beacon_cols if row[c] > -200}
+
+        # Skip rows with fewer than top_n readings
+        if len(beacon_values) < top_n:
+            continue
+
+        # Keep top_n strongest readings (highest RSSI)
+        sorted_beacons = dict(sorted(beacon_values.items(), key=lambda x: x[1], reverse=True)[:top_n])
+
+        readings.append(
+            BeaconReading(
+                location=row["location"],
+                date=row["date"],
+                beacons=sorted_beacons
+            )
         )
-        readings.append(reading)
 
     return readings
-
-
-if __name__ == "__main__":
-    filepath = "data/sample.csv"
-    readings = read_csv_with_pydantic(filepath)
-
-    # Example: print first parsed row
-    print(readings[0])
-    print(readings[0].beacons)  # dict of beacon RSSI values
