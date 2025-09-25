@@ -14,6 +14,4 @@ def rssi_to_distance(rssi, tx_power=-59, n=2.0):
     Returns:
         float: Estimated distance in meters, or NaN if RSSI is invalid
     """
-    if pd.isna(rssi) or rssi <= -200:
-        return np.nan
     return 10 ** ((tx_power - rssi) / (10 * n))
