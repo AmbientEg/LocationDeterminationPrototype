@@ -1,0 +1,47 @@
+import numpy as np
+
+def rssi_to_distance(rssi, tx_power=-59, n=2.0):
+    
+    return 10 ** ((tx_power - rssi) / (10 * n))
+
+
+def trilaterate(p1, r1, p2, r2, p3, r3):
+    
+    x1, y1 = p1
+    x2, y2 = p2
+    x3, y3 = p3
+
+    A = np.array([
+        [2*(x2 - x1), 2*(y2 - y1)],
+        [2*(x3 - x1), 2*(y3 - y1)]
+    ])
+    b = np.array([
+        r1**2 - r2**2 - x1**2 + x2**2 - y1**2 + y2**2,
+        r1**2 - r3**2 - x1**2 + x3**2 - y1**2 + y3**2
+    ])
+
+    pos = np.linalg.lstsq(A, b, rcond=None)[0]
+    return float(pos[0]), float(pos[1])
+
+
+if __name__ == "__main__":
+    # Known beacon positions
+    b1 = (0, 0)
+    b2 = (5, 0)
+    b3 = (2, 4)
+
+    # Example: REAL RSSI values measured from 3 beacons (in dBm)
+    rssi1 = -68
+    rssi2 = -70
+    rssi3 = -65
+
+    # Convert RSSI -> distances
+    r1 = rssi_to_distance(rssi1)
+    r2 = rssi_to_distance(rssi2)
+    r3 = rssi_to_distance(rssi3)
+
+    # Trilateration to estimate position
+    estimated_pos = trilaterate(b1, r1, b2, r2, b3, r3)
+
+    print("True position:       (2, 2)" )
+    print("Estimated position: ", estimated_pos)
