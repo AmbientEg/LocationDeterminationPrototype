@@ -1,16 +1,28 @@
 import numpy as np
-
-def rssi_to_distance(rssi, tx_power=-59, n=2.0):
-    
-    return 10 ** ((tx_power - rssi) / (10 * n))
+from src.log_normal_propagation import rssi_to_distance
 
 
 def trilaterate(p1, r1, p2, r2, p3, r3):
+    """
+    Estimate 2D position using trilateration from 3 known points and their distances.
+
+    Args:
+        p1, p2, p3: Tuples representing the (x, y) coordinates of the beacons.
+        r1, r2, r3: Distances from the unknown point to each beacon.
+
+    Returns:
+        (x, y): Estimated position coordinates.
+    """
     
+    # Unpack beacon coordinates
     x1, y1 = p1
     x2, y2 = p2
     x3, y3 = p3
 
+    
+    # Formulate the linear system using the trilateration equations:
+    # (x - xi)^2 + (y - yi)^2 = ri^2
+    # Subtracting first equation from the other two gives linear equations
     A = np.array([
         [2*(x2 - x1), 2*(y2 - y1)],
         [2*(x3 - x1), 2*(y3 - y1)]
@@ -20,7 +32,10 @@ def trilaterate(p1, r1, p2, r2, p3, r3):
         r1**2 - r3**2 - x1**2 + x3**2 - y1**2 + y3**2
     ])
 
+    # Solve the linear system A * [x, y] = b using least squares
     pos = np.linalg.lstsq(A, b, rcond=None)[0]
+
+    # Return coordinates as floats
     return float(pos[0]), float(pos[1])
 
 
