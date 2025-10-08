@@ -1,5 +1,23 @@
 # LocationDeterminationPrototype
 
+### HOW to run and test websockets
+
++ terminal 1:
+
+```
+   uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
++ terminal 2:
+
+```
+   python -m tests.test_websockets     
+```
+
+```
+   python -m tests.test_websockets_high      
+```
+
 ### **Option 2: Distance → Log → Trilateration → Kalman (4-state)**
 
 1. **Distance log**: Convert RSSI → distance.
