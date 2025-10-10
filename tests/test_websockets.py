@@ -3,7 +3,7 @@ import websockets
 import json
 
 async def test_websocket():
-    uri = "ws://127.0.0.1:8000/ws"  # Make sure your FastAPI server is running
+    uri = "ws://127.0.0.1:8000/ws" 
     async with websockets.connect(uri) as websocket:
         # Example sensor data (like Flutter app sends)
         sensor_data = {
