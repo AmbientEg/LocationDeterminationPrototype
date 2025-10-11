@@ -20,21 +20,20 @@ if __name__ == "__main__":
 
     # Step 2: Define beacon positions
     beacon_positions = {
-        "b3001": (6, 9),
-        "b3002": (10, 4),
-        "b3003": (14, 4),
-        "b3004": (18, 4),
-        "b3005": (10, 7),
-        "b3006": (14, 7),
-        "b3007": (18, 7),
-        "b3008": (10, 10),
-        "b3009": (4, 15),
-        "b3010": (10, 15),
-        "b3011": (14, 15),
-        "b3012": (18, 15),
-        "b3013": (23, 15)
+        "b3001": (5, 8),  # Column E, Row 8
+        "b3002": (10, 4),  # Column J, Row 4
+        "b3003": (14, 4),  # Column N, Row 4
+        "b3004": (18, 4),  # Column R, Row 4
+        "b3005": (10, 7),  # Column J, Row 7
+        "b3006": (14, 7),  # Column N, Row 7
+        "b3007": (18, 7),  # Column R, Row 7
+        "b3008": (10, 10),  # Column J, Row 10
+        "b3009": (4, 15),  # Column D, Row 15
+        "b3010": (10, 15),  # Column J, Row 15
+        "b3011": (14, 15),  # Column N, Row 15
+        "b3012": (18, 15),  # Column R, Row 15
+        "b3013": (23, 15)  # Column W, Row 15
     }
-
     # Step 3: Trilateration with detailed logging
     records = []
 
@@ -101,3 +100,11 @@ if __name__ == "__main__":
     print(tabulate(tril_df.head(1000), headers="keys", tablefmt="fancy_grid"))
 
     print(f"\n✅ Total processed rows: {len(tril_df)}")
+
+    # Step 5: Save output to CSV
+    OUTPUT_PATH = os.path.join(BASE_DIR, "data", "processed", "trilateration_kalman_results.csv")
+    os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
+
+    tril_df.to_csv(OUTPUT_PATH, index=False)
+    print(f"\n💾 Results saved to: {OUTPUT_PATH}")
+
