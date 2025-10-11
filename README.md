@@ -91,6 +91,12 @@ $$
 
 ## Flow chart
 
+Kalman Filter = Prediction + Correction loop
+Predict what you think is true → based on physics or previous data.
+Measure what sensors tell you now.
+Update your prediction using those measurements.
+Repeat again and again.
+
 ![alt text](Flowchart.png)
 
 ## kalman state Variables 
